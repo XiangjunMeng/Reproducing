@@ -1,8 +1,9 @@
 import tensorflow as tf, numpy as np, pandas as pd
 import matplotlib.pyplot as plt
-
 from pyscipopt import Model, quicksum
 import pyscipopt
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Data center parameters
 mu_min = 0
@@ -29,17 +30,30 @@ b = m * (p_idle + (e_usage - 1) * p_peak)
 T = 24
 
 # Initial length of the queue
-init_lambda_1 = 150
+init_lambda_1 = 0
 init_lambda_2 = 250
 init_lambda_3 = 350
 
 # Renewable power prediction
-W_1 = np.ones(T) * 10_000
+
+W_1 = np.ones(T) * 1_000
 W_2 = np.ones(T) * 16_000
 W_3 = np.ones(T) * 18_000
 
 # Service requests
 L = np.ones(T) * 100
+
+
+delta1 = []
+delta2 = []
+delta3 = []
+lambda1 = []
+lambda2 = []
+lambda3 = []
+mu1 = []
+mu2 = []
+mu3 = []
+
 
 for t in range(T):
 
@@ -51,6 +65,10 @@ for t in range(T):
         lambda_1 += delta_1 - mu_1
         lambda_2 += delta_2 - mu_2
         lambda_3 += delta_3 - mu_3
+
+        lambda_1 += delta_1 - mu_1 and lambda_1 >= 0
+        lambda_2 += delta_2 - mu_2 and lambda_2 >= 0
+        lambda_3 += delta_3 - mu_3 and lambda_3 >= 0
 
     model = Model("data_center_dr")
 
@@ -74,6 +92,14 @@ for t in range(T):
     # Objective
     obj_1 = G_1 * omega_1 + G_2 * omega_2 + G_3 * omega_3
     obj_2 = MU_1 * lambda_1 + MU_2 * lambda_2 + MU_3 * lambda_3
+
+    fai_1 = 0
+    fai_2 = 0
+    fai_3 = 0
+
+    # Objective
+    obj_1 = G_1 * omega_1 + G_2 * omega_2 + G_3 * omega_3
+    obj_2 = fai_1 * MU_1 * lambda_1 + fai_1 * MU_2 * lambda_2 + fai_3 * MU_3 * lambda_3
 
     model.addCons(DELTA_1 + DELTA_2 + DELTA_3 == L[t])
     model.addCons(lambda_1 + DELTA_1 - MU_1 <= max_queue, name='data_center_1_queue_constraint')
@@ -119,6 +145,10 @@ for t in range(T):
     delta_1 = sol[DELTA_1]
     delta_2 = sol[DELTA_2]
     delta_3 = sol[DELTA_3]
+    
+    # check total request amount
+    delta = delta_1 + delta_2 + delta_3
+    print(delta)
 
     p_1 = a * mu_1 + b
     p_2 = a * mu_2 + b
@@ -131,4 +161,22 @@ for t in range(T):
         # pass
     else:
         print("Problem could not be solved to optimality")
+    
+    delta1.append(delta_1)
+    delta2.append(delta_2)
+    delta3.append(delta_3)
+    mu1.append(mu_1)
+    mu2.append(mu_2)
+    mu3.append(mu_3)
+    lambda1.append(lambda_1)
+    lambda2.append(lambda_2)
+    lambda3.append(lambda_3)
+    print(lambda1)
+    print(lambda2)
+    print(lambda3)
 
+    plt.plot(lambda1, label = 'dc1')
+    plt.plot(lambda2, label = 'dc2')
+    plt.plot(lambda3, label = 'dc3')
+    plt.legend()
+    plt.show()
